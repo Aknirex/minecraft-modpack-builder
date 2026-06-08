@@ -1,0 +1,168 @@
+{
+  "formatVersion": 1,
+  "game": "minecraft",
+  "versionId": "1.20.1",
+  "name": "机械动力整合包 (Fabric)",
+  "summary": "Fabric版：机械动力(Create)、e4mc免正版联机、Open Parties and Claims领地、JourneyMap地图、Sodium性能优化、Indium渲染兼容，含全套辅助模组。",
+  "dependencies": {
+    "minecraft": "1.20.1",
+    "fabric-loader": "0.17.2"
+  },
+  "mods": [
+    {
+      "name": "Fabric API",
+      "slug": "fabric-api",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "Fabric 前置框架"
+    },
+    {
+      "name": "Fabric Language Kotlin",
+      "slug": "fabric-language-kotlin",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "Kotlin 运行时 (Inventory Profiles Next 依赖)"
+    },
+    {
+      "name": "Create (Fabric)",
+      "slug": "create-fabric",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "机械动力核心"
+    },
+    {
+      "name": "Create: Steam 'n' Rails",
+      "slug": "create-steam-n-rails",
+      "platform": "modrinth",
+      "side": "both",
+      "optional": true,
+      "note": "机械动力附属 - 蒸汽铁路"
+    },
+    {
+      "name": "e4mc",
+      "slug": "e4mc",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "免正版联机 - 单人世界一键开放为公网服务器"
+    },
+    {
+      "name": "Open Parties and Claims",
+      "slug": "open-parties-and-claims",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "领地模组 - 区块认领与队伍管理"
+    },
+    {
+      "name": "JourneyMap",
+      "slug": "journeymap",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "小地图 + 全屏大地图"
+    },
+    {
+      "name": "Just Enough Items",
+      "slug": "jei",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "物品配方查看"
+    },
+    {
+      "name": "Jade",
+      "slug": "jade",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "准星指向信息显示"
+    },
+    {
+      "name": "AppleSkin",
+      "slug": "appleskin",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "食物饱食度可视化"
+    },
+    {
+      "name": "Mouse Tweaks",
+      "slug": "mouse-tweaks",
+      "platform": "modrinth",
+      "side": "client",
+      "note": "鼠标快捷物品管理"
+    },
+    {
+      "name": "Clumps",
+      "slug": "clumps",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "经验球聚合"
+    },
+    {
+      "name": "Controlling",
+      "slug": "controlling",
+      "platform": "modrinth",
+      "side": "client",
+      "note": "键位搜索管理"
+    },
+    {
+      "name": "Searchables",
+      "slug": "searchables",
+      "platform": "modrinth",
+      "side": "client",
+      "note": "配置界面搜索"
+    },
+    {
+      "name": "Just Enough Resources",
+      "slug": "just-enough-resources-jer",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "世界生成资源信息"
+    },
+    {
+      "name": "Inventory Profiles Next",
+      "slug": "inventory-profiles-next",
+      "platform": "modrinth",
+      "side": "client",
+      "note": "一键整理背包"
+    },
+    {
+      "name": "libIPN",
+      "slug": "libipn",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "Inventory Profiles Next 前置"
+    },
+    {
+      "name": "Indium",
+      "slug": "indium",
+      "platform": "modrinth",
+      "side": "client",
+      "note": "Sodium + Fabric Rendering API 桥梁 (Create 渲染必需)"
+    },
+    {
+      "name": "Sodium",
+      "slug": "sodium",
+      "platform": "modrinth",
+      "side": "client",
+      "note": "渲染优化 - 大幅提升 FPS"
+    },
+    {
+      "name": "Lithium",
+      "slug": "lithium",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "服务端优化 - 降低 CPU 占用"
+    },
+    {
+      "name": "FerriteCore",
+      "slug": "ferrite-core",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "内存优化 - 减少 RAM 占用"
+    },
+    {
+      "name": "ModernFix",
+      "slug": "modernfix",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "综合修复与加载优化"
+    }
+  ]
+}
