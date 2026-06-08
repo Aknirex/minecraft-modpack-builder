@@ -5,7 +5,7 @@ description: "Create and validate Minecraft Modrinth (.mrpack) modpacks from use
 
 # Minecraft Modpack Builder
 
-Build reproducible Minecraft modpacks in Modrinth `.mrpack` format from user goals.
+Build reproducible Minecraft modpacks in Modrinth `.mrpack` format from user goals. Modify existing modpacks when the user wants to add/remove mods, shaders, or resource packs. Diagnose and fix runtime errors from crash logs and launcher warnings.
 
 ---
 
@@ -14,6 +14,7 @@ Build reproducible Minecraft modpacks in Modrinth `.mrpack` format from user goa
 1. **Analyze requirements**
    - Extract Minecraft version, loader preference, required mods, optional mods, gameplay goals, performance goals, multiplayer needs, client/server target, language/region preferences, and release constraints.
    - If the user asks for a single mod install, launcher troubleshooting, a CurseForge-only pack, or a server-only deployment, handle that task directly instead of generating a `.mrpack`.
+   - If the user wants to add mods, shaders, or resource packs to an **existing** modpack, skip to the "Modpack Modification" workflow below.
 
 2. **Select Minecraft version**
    - Use the user-specified version if provided.
@@ -39,6 +40,7 @@ Build reproducible Minecraft modpacks in Modrinth `.mrpack` format from user goa
    - Verify each selected mod version supports the chosen Minecraft version and loader.
    - Detect dependency conflicts, missing required dependencies, incompatible loaders, and unsupported client/server side declarations.
    - Detect duplicate feature categories before packaging.
+   - **When a conflict is detected, do not silently remove mods.** Propose concrete alternatives and ask the user to confirm before proceeding.
    - Prefer coherent, stable packs over large random mod collections.
 
 6. **Run preflight before generating output**
@@ -55,6 +57,21 @@ Build reproducible Minecraft modpacks in Modrinth `.mrpack` format from user goa
    - Generate `modpack/overrides/` only for configs, datapacks, resource packs, shader packs, server defaults, and documentation.
    - Build a temporary zip layout with `modrinth.index.json` and `overrides/`, then rename the archive to `.mrpack`.
    - Verify local SHA1 hashes against Modrinth metadata.
+
+8. **Error diagnosis and iterative fix (runtime issues)**
+   - When the user reports a **runtime error** (crash, purple/black textures, incompatible mods warning, game won't start), **always** ask for the following evidence before making changes:
+     - Crash report file (`crash-reports/*.txt`) or latest log (`logs/latest.log`)
+     - Launcher error messages (HMCL/Prism/Modrinth App error dialogs)
+     - Screenshots of the issue if visual (missing textures, UI glitches)
+   - Diagnose root cause from the provided evidence:
+     - Parse stack traces to identify the failing mod
+     - Cross-reference error messages against the current `config.json` mod list
+     - Identify missing dependencies, version mismatches, or loader incompatibilities
+   - Fix by modifying `modpack/config.json` (add missing mod, update version, remove conflicting mod)
+   - Rebuild the `.mrpack` by running `.\modpack\build.ps1`
+   - **Tell the user exactly:** "Re-import the updated `.mrpack` in your launcher (delete the old instance or use the launcher's update feature) and test again."
+   - Iterate until the user confirms the issue is resolved.
+   - **Never add hardcoded mod-specific compatibility rules to this skill.** Mod compatibility changes with versions. The diagnosis loop above handles all cases generically.
 
 ---
 
@@ -92,6 +109,50 @@ Use this `config.json` shape:
 ```
 
 Default filesystem names should be ASCII, lowercase, and hyphenated. User-facing pack names may use UTF-8 when requested.
+
+---
+
+## Modpack Modification
+
+Use this workflow when the user wants to change an **already-built** modpack — add mods, remove mods, add shaderpacks, add resource packs, or update existing mod versions.
+
+### Step 1: Read the existing pack
+
+Locate and read the existing `modpack/config.json`. Understand:
+- Current Minecraft version and loader
+- Current mod list (names, slugs, sides)
+- Which mods are optional vs required
+
+### Step 2: Plan the change
+
+For **adding mods:**
+- Query Modrinth API for the requested mod's compatibility (loader + Minecraft version)
+- Resolve transitive dependencies recursively
+- Check for duplicate feature categories against the existing mod list
+- Warn the user if the new mod conflicts with an existing one; propose alternatives
+
+For **removing mods:**
+- Check if any other mod in the list depends on it (transitive deps)
+- Warn before removing a dependency that other mods need
+
+For **adding shaderpacks or resource packs:**
+- These go into `modpack/overrides/shaderpacks/` or `modpack/overrides/resourcepacks/`
+- No Modrinth API query needed — just update the overrides directory
+- Rebuild `.mrpack` so the packs are included in the instance
+
+### Step 3: Apply the change
+
+- Modify `config.json` (add/remove/update mods)
+- If adding shaders/resource packs, place files in the appropriate `overrides/` subdirectory
+- Rebuild the `.mrpack`:
+  ```powershell
+  .\modpack\build.ps1
+  ```
+
+### Step 4: Deliver to user
+
+**Always tell the user:**
+> The `.mrpack` has been updated. Re-import it in your launcher. If using HMCL/Prism, delete the old instance first or use the launcher's "Update modpack" feature. Test and report any issues.
 
 ---
 
@@ -166,6 +227,7 @@ modpack/
 - Avoid unsupported dependencies, unreviewed experimental versions, and excessive mod counts.
 - Do not promote bypassing Minecraft account authentication as a default pack feature.
 - Keep loader and framework selection data-driven from mod requirements.
+- **Do not hardcode mod-specific compatibility rules (e.g., "Mod X always needs Mod Y").** Mod compatibility changes across versions. Rely on the Modrinth API `dependencies` array and the error diagnosis loop instead.
 
 ---
 
@@ -179,3 +241,5 @@ modpack/
 - Build before preflight passes.
 - Recommend large mod lists without reviewing interactions.
 - Default `server.properties` to `online-mode=false`.
+- Add mod-specific compatibility rules to this skill — these belong in the diagnosis loop, not in static documentation.
+- Fix runtime errors without first seeing crash logs or launcher error messages from the user.
