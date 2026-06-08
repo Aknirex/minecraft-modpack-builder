@@ -2,96 +2,98 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-基于 Modrinth 平台的 Minecraft 整合包构建工具，通过 `config.json` + `build.ps1` 实现可复现的 `.mrpack` 打包流程。
+> **🤖 If you are an AI coding agent:** start by reading [AGENTS.md](AGENTS.md) for project conventions and constraints, then see [skill/SKILL.md](skill/SKILL.md) for the modpack-building workflow. The current modpack is defined in [modpack/config.json](modpack/config.json).
 
-## ✨ 特性
+A declarative Minecraft modpack builder for the Modrinth `.mrpack` format. Define your modpack in `config.json`, then run a single PowerShell script to download, verify, and package everything into a reproducible `.mrpack` file.
 
-- **声明式配置** — 只需填写 `modpack/config.json` 即可定义模组列表
-- **自动依赖解析** — 通过 Modrinth API 拉取指定版本模组及依赖
-- **SHA1 哈希校验** — 确保下载文件完整性
-- **平台适配** — 支持 Fabric / Forge / NeoForge / Quilt 四种加载器
-- **可选模组机制** — `optional: true` 的模组默认跳过，可通过参数启用
-- **一键打包** — 生成符合 Modrinth 规范的 `.mrpack` 文件
+## ✨ Features
 
-## 📦 当前整合包
+- **Declarative config** — Define mods in `modpack/config.json`; no manual downloading
+- **Auto dependency resolution** — Fetches mods via Modrinth API for a given Minecraft version and loader
+- **SHA1 hash verification** — Ensures file integrity after download
+- **Multi-loader support** — Fabric, Forge, NeoForge, and Quilt
+- **Optional mods** — Mark mods as `optional: true` to skip by default, toggle with `-IncludeOptional`
+- **One-command packaging** — Produces a `.mrpack` ready for Prism Launcher or Modrinth App
 
-| 项目 | 详情 |
-|------|------|
-| **名称** | 机械动力整合包 (Fabric) |
+## 📦 Current Modpack
+
+| Property | Value |
+|----------|-------|
+| **Name** | Create Modpack (Fabric) |
 | **Minecraft** | 1.20.1 |
 | **Loader** | Fabric 0.17.2 |
-| **核心模组** | Create (机械动力) |
-| **模组数量** | 20 个（含可选） |
+| **Core mod** | Create (机械动力) |
+| **Total mods** | 20 (including optional) |
 
-### 模组列表
+### Mod List
 
-| 类别 | 模组 |
-|------|------|
-| 框架前置 | Fabric API, Fabric Language Kotlin, libIPN |
-| 核心 | Create (Fabric), Create: Steam 'n' Rails (可选) |
-| 联机 | e4mc |
-| 领地 | Open Parties and Claims |
-| 地图 | JourneyMap |
-| 辅助 | JEI, Jade, AppleSkin, Mouse Tweaks, Clumps, Controlling, Searchables, Just Enough Resources, Inventory Profiles Next |
-| 优化 | Sodium, Lithium, FerriteCore, ModernFix |
+| Category | Mods |
+|----------|------|
+| Framework | Fabric API, Fabric Language Kotlin, libIPN |
+| Core | Create (Fabric), Create: Steam 'n' Rails (optional) |
+| Multiplayer | e4mc |
+| Claims | Open Parties and Claims |
+| Map | JourneyMap |
+| Utility | JEI, Jade, AppleSkin, Mouse Tweaks, Clumps, Controlling, Searchables, Just Enough Resources, Inventory Profiles Next |
+| Performance | Sodium, Lithium, FerriteCore, ModernFix |
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 前置要求
+### Prerequisites
 
-- Windows 系统（构建脚本为 PowerShell 5.1）
-- 网络连接（需访问 Modrinth API）
+- Windows (build script targets PowerShell 5.1)
+- Internet connection (Modrinth API access required)
 
-### 构建整合包
+### Build
 
 ```powershell
-# 基础构建（跳过可选模组）
+# Basic build (skips optional mods)
 .\modpack\build.ps1
 
-# 包含可选模组
+# Include optional mods
 .\modpack\build.ps1 -IncludeOptional
 
-# 指定输出名称
+# Custom output name
 .\modpack\build.ps1 -PackName "my-custom-pack"
 ```
 
-构建产物 `.mrpack` 位于 `modpack/build/` 目录。
+The `.mrpack` output goes to `modpack/build/`.
 
-### 安装整合包
+### Install the Modpack
 
-1. 下载并安装 [Prism Launcher](https://prismlauncher.org/) 或 [Modrinth App](https://modrinth.com/app)
-2. 将 `.mrpack` 文件拖入启动器窗口
-3. 启动器将自动安装 Minecraft、加载器和所有模组
+1. Download and install [Prism Launcher](https://prismlauncher.org/) or [Modrinth App](https://modrinth.com/app)
+2. Drag the `.mrpack` file into the launcher window
+3. The launcher will automatically install Minecraft, the loader, and all mods
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```text
 .
-├── LICENSE                 # MIT 许可证
+├── LICENSE                 # MIT license
 ├── .gitignore
 ├── modpack/
-│   ├── config.json         # 整合包配置（模组列表、版本、加载器）
-│   ├── build.ps1           # 构建脚本（PowerShell 5.1）
-│   └── overrides/          # 覆盖文件
-│       ├── config/         # 模组配置
+│   ├── config.json         # Modpack definition (mods, version, loader)
+│   ├── build.ps1           # Build script (PowerShell 5.1)
+│   └── overrides/          # Override files
+│       ├── config/         # Mod configs
 │       ├── server.properties
-│       └── README.md       # 用户使用说明（中文）
-└── skill/                  # AI 辅助构建 Skill 定义
-    ├── SKILL.md            # Skill 核心定义与工作流
-    └── agents/             # Agent 配置
+│       └── README.md       # User guide (Chinese)
+└── skill/                  # AI skill definition
+    ├── SKILL.md            # Skill workflow and guidelines
+    └── agents/             # Agent configuration
 ```
 
-## 🛠 自定义整合包
+## 🛠 Custom Modpack
 
-编辑 `modpack/config.json`：
+Edit `modpack/config.json`:
 
 ```json
 {
   "formatVersion": 1,
   "game": "minecraft",
   "versionId": "1.20.1",
-  "name": "我的整合包",
-  "summary": "整合包简介",
+  "name": "My Modpack",
+  "summary": "A short description of the pack.",
   "dependencies": {
     "minecraft": "1.20.1",
     "fabric-loader": "0.17.2"
@@ -102,12 +104,21 @@
       "slug": "fabric-api",
       "platform": "modrinth",
       "side": "both",
-      "note": "Fabric 前置依赖"
+      "note": "Required framework dependency"
     }
   ]
 }
 ```
 
-## 📄 许可证
+### Loader Keys
+
+| Dependency Key | Loader |
+|---------------|--------|
+| `fabric-loader` | Fabric |
+| `quilt-loader` | Quilt |
+| `forge` | Forge |
+| `neoforge` | NeoForge |
+
+## 📄 License
 
 [MIT](LICENSE) © 2025 Aknirex
