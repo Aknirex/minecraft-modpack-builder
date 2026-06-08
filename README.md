@@ -1,123 +1,68 @@
 # Minecraft Modpack Builder
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![skills.sh](https://skills.sh/b/aknirex/minecraft-modpack-builder)](https://skills.sh/aknirex/minecraft-modpack-builder)
 
-> **🤖 If you are an AI coding agent:** start by reading [AGENTS.md](AGENTS.md) for project conventions and constraints, then see [SKILL.md](SKILL.md) for the modpack-building workflow. The current modpack is defined in [modpack/config.json](modpack/config.json).
+A skill for creating and validating Minecraft Modrinth `.mrpack` modpacks with AI coding agents.
 
-A declarative Minecraft modpack builder for the Modrinth `.mrpack` format. Define your modpack in `config.json`, then run a single PowerShell script to download, verify, and package everything into a reproducible `.mrpack` file.
-
-## ✨ Features
-
-- **Declarative config** — Define mods in `modpack/config.json`; no manual downloading
-- **Dependency validation** — Checks Modrinth metadata and fails the build when required dependencies are missing
-- **SHA1 hash verification** — Ensures file integrity after download
-- **Multi-loader support** — Fabric, Forge, NeoForge, and Quilt
-- **Optional mods** — Mark mods as `optional: true` to skip by default, toggle with `-IncludeOptional`
-- **One-command packaging** — Produces a `.mrpack` ready for Prism Launcher or Modrinth App
-
-## 📦 Current Modpack
-
-| Property | Value |
-|----------|-------|
-| **Name** | Create Modpack (Fabric) |
-| **Minecraft** | 1.20.1 |
-| **Loader** | Fabric 0.17.2 |
-| **Core mod** | Create (机械动力) |
-| **Total mods** | 22 (including optional) |
-
-### Mod List
-
-| Category | Mods |
-|----------|------|
-| Framework | Fabric API, Fabric Language Kotlin, Forge Config API Port, libIPN |
-| Core | Create (Fabric), Create: Steam 'n' Rails (optional) |
-| Multiplayer | e4mc |
-| Claims | Open Parties and Claims |
-| Map | JourneyMap |
-| Utility | JEI, Jade, AppleSkin, Mouse Tweaks, Clumps, Controlling, Searchables, Just Enough Resources, Inventory Profiles Next |
-| Performance | Sodium, Lithium, FerriteCore, ModernFix |
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Windows (build script targets PowerShell 5.1)
-- Internet connection (Modrinth API access required)
-
-### Build
+## Install
 
 ```powershell
-# Basic build (skips optional mods)
-.\modpack\build.ps1
-
-# Include optional mods
-.\modpack\build.ps1 -IncludeOptional
-
-# Custom output name
-.\modpack\build.ps1 -PackName "my-custom-pack"
+npx skills add aknirex/minecraft-modpack-builder --skill minecraft-modpack
 ```
 
-The `.mrpack` output goes to `modpack/build/`.
+That is it. After installation, ask your agent to use `minecraft-modpack` when you want to create, adjust, validate, or package a Minecraft modpack.
 
-### Install the Modpack
+## What This Skill Does
 
-1. Download and install [Prism Launcher](https://prismlauncher.org/) or [Modrinth App](https://modrinth.com/app)
-2. Drag the `.mrpack` file into the launcher window
-3. The launcher will automatically install Minecraft, the loader, and all mods
+`minecraft-modpack` helps an AI agent build reproducible Modrinth modpacks from plain requirements. It guides the agent to:
 
-## 📁 Project Structure
+- choose a compatible Minecraft version and loader
+- support Fabric, Forge, NeoForge, and Quilt
+- resolve Modrinth project metadata for requested mods
+- check required dependencies and loader compatibility
+- avoid duplicate feature categories, such as multiple minimaps or recipe viewers
+- generate `config.json`, `build.ps1`, and `overrides/`
+- package a `.mrpack` for Prism Launcher or the Modrinth App
+
+This repository also includes a working Fabric 1.20.1 Create modpack example under `modpack/`.
+
+## Example Prompts
 
 ```text
-.
-├── LICENSE                 # MIT license
-├── SKILL.md                # AI skill definition (entry point for npx skills add)
-├── .gitignore
-├── modpack/
-│   ├── config.json         # Modpack definition (mods, version, loader)
-│   ├── build.ps1           # Build script (PowerShell 5.1)
-│   └── overrides/          # Override files
-│       ├── config/         # Mod configs
-│       ├── server.properties
-│       └── README.md       # User guide (Chinese)
-└── skill/agents/           # Agent configuration
+Use minecraft-modpack to create a Fabric 1.20.1 Create modpack with performance mods, JEI, Jade, JourneyMap, and multiplayer support.
 ```
 
-## 🛠 Custom Modpack
-
-Edit `modpack/config.json`:
-
-```json
-{
-  "formatVersion": 1,
-  "game": "minecraft",
-  "versionId": "1.20.1",
-  "name": "My Modpack",
-  "summary": "A short description of the pack.",
-  "dependencies": {
-    "minecraft": "1.20.1",
-    "fabric-loader": "0.17.2"
-  },
-  "mods": [
-    {
-      "name": "Fabric API",
-      "slug": "fabric-api",
-      "platform": "modrinth",
-      "side": "both",
-      "note": "Required framework dependency"
-    }
-  ]
-}
+```text
+Use minecraft-modpack to review this modpack config and tell me which dependencies or loader conflicts need fixing before release.
 ```
 
-### Loader Keys
+```text
+Use minecraft-modpack to add a claims mod and a minimap to my existing Modrinth pack without duplicating features.
+```
 
-| Dependency Key | Loader |
-|---------------|--------|
-| `fabric-loader` | Fabric |
-| `quilt-loader` | Quilt |
-| `forge` | Forge |
-| `neoforge` | NeoForge |
+## Notes
 
-## 📄 License
+- The bundled build script targets Windows PowerShell 5.1.
+- The example pack downloads mods from the Modrinth API and verifies SHA1 hashes.
+- Build outputs, downloaded JARs, and `.mrpack` files are intentionally ignored by Git.
+- Required dependencies should be explicit in `config.json`; the build fails if Modrinth metadata reports a missing required dependency.
+- `server.properties` defaults to `online-mode=true`.
+
+## Example Pack Build
+
+```powershell
+.\modpack\build.ps1
+```
+
+Include optional mods:
+
+```powershell
+.\modpack\build.ps1 -IncludeOptional
+```
+
+The generated `.mrpack` is written to `modpack/build/`.
+
+## License
 
 [MIT](LICENSE) © 2025 Aknirex
