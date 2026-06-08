@@ -1,9 +1,3 @@
-# Build outputs and local caches
-modpack/build/
-modpack/**/*.mrpack
-modpack/**/*.zip
-modpack/**/mods-cache/
-
 # Java/Minecraft generated artifacts
 *.jar
 *.log
