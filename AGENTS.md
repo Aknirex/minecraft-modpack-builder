@@ -9,7 +9,7 @@ This is a **Minecraft Modrinth modpack builder** that produces `.mrpack` files f
 ## Repository Layout
 
 ```
-skill/SKILL.md           # AI skill definition — the contract agents follow
+SKILL.md                  # AI skill definition — the contract agents follow (root level for npx skills add)
 skill/agents/openai.yaml  # Agent interface config (display name, invocation policy)
 modpack/config.json       # Current modpack: Create+Fabric 1.20.1, 20 mods
 modpack/build.ps1         # PowerShell 5.1 build script (download → verify → package)
@@ -20,7 +20,7 @@ modpack/overrides/        # Pack-owned files (configs, server.properties, README
 
 ### Skill Development
 
-- `skill/SKILL.md` is the **single source of truth** for how AI agents build modpacks
+- `SKILL.md` (repo root) is the **single source of truth** for how AI agents build modpacks
 - The skill defines a 7-step workflow: analyze → select version → select loader → resolve deps → validate → preflight → generate
 - All loader decisions must be data-driven; never hardcode a default loader
 - Mods are declared with `slug`, `platform: "modrinth"`, `side` (both/client/server), and optional `note`
@@ -85,4 +85,4 @@ This project is triggered when a user asks to:
 - Generate `.mrpack` or `config.json`
 - Set up a server with specific mods
 
-The skill at `skill/SKILL.md` defines the full execution contract.
+The skill at [`SKILL.md`](SKILL.md) defines the full execution contract.

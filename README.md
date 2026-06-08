@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **🤖 If you are an AI coding agent:** start by reading [AGENTS.md](AGENTS.md) for project conventions and constraints, then see [skill/SKILL.md](skill/SKILL.md) for the modpack-building workflow. The current modpack is defined in [modpack/config.json](modpack/config.json).
+> **🤖 If you are an AI coding agent:** start by reading [AGENTS.md](AGENTS.md) for project conventions and constraints, then see [SKILL.md](SKILL.md) for the modpack-building workflow. The current modpack is defined in [modpack/config.json](modpack/config.json).
 
 A declarative Minecraft modpack builder for the Modrinth `.mrpack` format. Define your modpack in `config.json`, then run a single PowerShell script to download, verify, and package everything into a reproducible `.mrpack` file.
 
@@ -70,6 +70,7 @@ The `.mrpack` output goes to `modpack/build/`.
 ```text
 .
 ├── LICENSE                 # MIT license
+├── SKILL.md                # AI skill definition (entry point for npx skills add)
 ├── .gitignore
 ├── modpack/
 │   ├── config.json         # Modpack definition (mods, version, loader)
@@ -78,9 +79,7 @@ The `.mrpack` output goes to `modpack/build/`.
 │       ├── config/         # Mod configs
 │       ├── server.properties
 │       └── README.md       # User guide (Chinese)
-└── skill/                  # AI skill definition
-    ├── SKILL.md            # Skill workflow and guidelines
-    └── agents/             # Agent configuration
+└── skill/agents/           # Agent configuration
 ```
 
 ## 🛠 Custom Modpack
