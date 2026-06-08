@@ -27,16 +27,20 @@ $configContent = Get-Content $ConfigPath -Raw -Encoding UTF8
 $config = $configContent | ConvertFrom-Json
 
 $mcVersion = $config.versionId
-$loader = "forge"
-$loaderVersion = "47.3.0"
+$loader = $null
+$loaderVersion = $null
 if ($config.dependencies -ne $null) {
     $depProps = $config.dependencies.PSObject.Properties
     foreach ($prop in $depProps) {
         $name = $prop.Name
-        # Normalize loader name: fabric-loader -> fabric
-        if ($name -eq "forge" -or $name -eq "fabric" -or $name -eq "fabric-loader" -or $name -eq "neoforge" -or $name -eq "quilt") {
+        # Normalize loader name: fabric-loader -> fabric, quilt-loader -> quilt
+        $knownLoaders = @("forge", "fabric", "fabric-loader", "neoforge", "quilt", "quilt-loader")
+        if ($name -in $knownLoaders) {
             if ($name -eq "fabric-loader") {
                 $loader = "fabric"
+            }
+            elseif ($name -eq "quilt-loader") {
+                $loader = "quilt"
             }
             else {
                 $loader = $name
@@ -45,6 +49,10 @@ if ($config.dependencies -ne $null) {
             break
         }
     }
+}
+if (-not $loader) {
+    Write-Host "FATAL: No loader (fabric-loader, forge, neoforge, quilt-loader) found in config.json dependencies" -ForegroundColor Red
+    exit 1
 }
 
 Write-Host ("  Minecraft: " + $mcVersion)
@@ -200,50 +208,56 @@ foreach ($f in $downloadedFiles) {
     $knownSlugs[$f.Slug] = $true
 }
 
+# Cache: project_id -> slug (lazy-resolved via Modrinth API)
+$projectIdToSlug = @{}
+
 $missingDeps = @()
 $depWarnings = @()
 
 foreach ($f in $downloadedFiles) {
     $deps = $f.Dependencies
     if ($deps -eq $null -or $deps.Count -eq 0) { continue }
-    
+
     foreach ($dep in $deps) {
         if ($dep.dependency_type -ne "required") { continue }
-        
+
         $depProjectId = $dep.project_id
         if ($depProjectId -eq $null) { continue }
-        
-        # Check if this project is already in our mod list
-        # We need to resolve project_id -> slug. Try cached first.
-        $found = $false
-        foreach ($knownFile in $downloadedFiles) {
-            # We don't have project_id stored per-file yet, so we use a lazy check:
-            # Query the Modrinth project endpoint
-            break
+
+        # Resolve project_id -> slug via cache or Modrinth API
+        if (-not $projectIdToSlug.ContainsKey($depProjectId)) {
+            try {
+                $projectUrl = $apiBase + "/project/" + $depProjectId
+                $projectInfo = Invoke-RestMethod -Uri $projectUrl -ContentType "application/json" -ErrorAction Stop
+                $projectIdToSlug[$depProjectId] = $projectInfo.slug
+            }
+            catch {
+                $depWarnings += "Could not resolve project_id=$depProjectId (dep of $($f.ModName)): $_"
+                $projectIdToSlug[$depProjectId] = $null
+            }
+        }
+
+        $depSlug = $projectIdToSlug[$depProjectId]
+        if ($depSlug -eq $null) { continue }
+
+        if (-not $knownSlugs.ContainsKey($depSlug)) {
+            $missingDeps += "$depSlug (required by $($f.ModName))"
         }
     }
 }
 
-# Lazy check: only report if there are dependencies we can't verify
-$hasDeps = $false
-foreach ($f in $downloadedFiles) {
-    if ($f.Dependencies -ne $null -and $f.Dependencies.Count -gt 0) {
-        $hasDeps = $true
-        break
+if ($missingDeps.Count -gt 0) {
+    Write-Host "  WARNING: Missing required dependencies:" -ForegroundColor Yellow
+    foreach ($m in $missingDeps | Select-Object -Unique) {
+        Write-Host "    - $m" -ForegroundColor Yellow
     }
+    Write-Host "  Add these to config.json mods list and rebuild." -ForegroundColor DarkGray
 }
-
-if ($hasDeps) {
-    Write-Host "  Mods with declared dependencies detected." -ForegroundColor DarkGray
-    Write-Host "  Common required deps to verify manually:" -ForegroundColor Yellow
-    Write-Host "    - Fabric API (fabric-api): required by most Fabric mods" -ForegroundColor Gray
-    Write-Host "    - Fabric Language Kotlin (fabric-language-kotlin): required by IPN, etc." -ForegroundColor Gray
-    Write-Host "    - libIPN (libipn): required by Inventory Profiles Next" -ForegroundColor Gray
-    Write-Host "    - Architectury API (architectury-api): required by FTB/OPAC mods" -ForegroundColor Gray
-    Write-Host "  Run with known-good config for automatic resolution." -ForegroundColor DarkGray
+elseif ($depWarnings.Count -gt 0) {
+    Write-Host "  Dependency check completed with warnings (see above)." -ForegroundColor DarkYellow
 }
 else {
-    Write-Host "  No inter-mod dependencies declared (standalone mods)." -ForegroundColor Green
+    Write-Host "  All required dependencies are satisfied." -ForegroundColor Green
 }
 
 # ---- Step 4: Verify hashes and build file entries ----
