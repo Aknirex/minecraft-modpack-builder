@@ -1,0 +1,17 @@
+# Build outputs and local caches
+modpack/build/
+modpack/**/*.mrpack
+modpack/**/*.zip
+modpack/**/mods-cache/
+
+# Java/Minecraft generated artifacts
+*.jar
+*.log
+*.tmp
+
+# Editor and OS files
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+Desktop.ini
