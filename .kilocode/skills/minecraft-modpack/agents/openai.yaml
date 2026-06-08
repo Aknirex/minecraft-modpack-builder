@@ -1,7 +1,0 @@
-interface:
-  display_name: "Minecraft Modpack Builder"
-  short_description: "Build reproducible Modrinth modpacks"
-  default_prompt: "Use $minecraft-modpack to create a stable Modrinth .mrpack from my Minecraft version, loader, and mod requirements."
-
-policy:
-  allow_implicit_invocation: true
