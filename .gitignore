@@ -11,6 +11,4 @@ Thumbs.db
 Desktop.ini
 
 # Tool-specific directories (keep local, not in repo)
-.kilocode/
-.kilo/
 .docs/
