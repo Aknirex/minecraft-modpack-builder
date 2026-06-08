@@ -1,6 +1,7 @@
 # =============================================================================
 # Minecraft Modpack Builder - 机械动力整合包
 # 用法: .\build.ps1 [-IncludeOptional] [-SkipDownload]
+# -SkipDownload uses existing cached JARs only; it fails if any required file is missing.
 # =============================================================================
 
 param(
@@ -114,28 +115,29 @@ foreach ($mod in $modsToDownload) {
         $failed = $true
     }
     
-    if (-not $failed) {
-        if ($versions.Count -eq 0) {
-            Write-Host ("    No versions for " + $loader + " " + $mcVersion + ", retrying without loader filter...") -ForegroundColor DarkYellow
-            $queryUrl2 = $apiBase + "/project/" + $slug + "/version?game_versions=" + $encodedMc
-            try {
-                $versions = Invoke-RestMethod -Uri $queryUrl2 -ContentType "application/json" -ErrorAction Stop
-            }
-            catch {
-                Write-Host ("    Retry API call failed: " + $_.Exception.Message) -ForegroundColor Red
-                $failed = $true
-            }
-        }
-    }
-    
     if ($failed) {
-        Write-Host ("    Skipping " + $mod.name + " due to API failure") -ForegroundColor Red
-        continue
+        Write-Host ("    FATAL: Cannot resolve " + $mod.name + " due to API failure") -ForegroundColor Red
+        exit 1
     }
     
     if ($versions.Count -eq 0) {
-        Write-Host ("    ERROR: No versions found for " + $mcVersion + ", skipping") -ForegroundColor Red
-        continue
+        Write-Host ("    ERROR: No versions found for " + $loader + " " + $mcVersion) -ForegroundColor Red
+        Write-Host "    Checking Minecraft-version-only results for diagnosis..." -ForegroundColor DarkYellow
+        $queryUrl2 = $apiBase + "/project/" + $slug + "/version?game_versions=" + $encodedMc
+        try {
+            $versionOnly = Invoke-RestMethod -Uri $queryUrl2 -ContentType "application/json" -ErrorAction Stop
+            if ($versionOnly.Count -gt 0) {
+                Write-Host ("    Found versions for Minecraft " + $mcVersion + ", but not for loader " + $loader) -ForegroundColor Red
+            }
+            else {
+                Write-Host ("    No versions found for Minecraft " + $mcVersion) -ForegroundColor Red
+            }
+        }
+        catch {
+            Write-Host ("    Diagnostic API call failed: " + $_.Exception.Message) -ForegroundColor Red
+        }
+        Write-Host ("    FATAL: " + $mod.name + " is not compatible with the selected loader/version") -ForegroundColor Red
+        exit 1
     }
     
     $latest = $versions[0]
@@ -151,9 +153,13 @@ foreach ($mod in $modsToDownload) {
     
     $destPath = Join-Path $modsDir $fname
     
-    if (-not $SkipDownload) {
-        if (Test-Path $destPath) {
-            Write-Host "    File already exists, skipping download" -ForegroundColor DarkGray
+    if (Test-Path $destPath) {
+        Write-Host "    File already exists, skipping download" -ForegroundColor DarkGray
+    }
+    else {
+        if ($SkipDownload) {
+            Write-Host ("    FATAL: Missing cached file while -SkipDownload is set: " + $destPath) -ForegroundColor Red
+            exit 1
         }
         else {
             Write-Host "    Downloading..." -ForegroundColor DarkGray
@@ -163,7 +169,7 @@ foreach ($mod in $modsToDownload) {
             }
             catch {
                 Write-Host ("    Download failed: " + $_.Exception.Message) -ForegroundColor Red
-                continue
+                exit 1
             }
         }
     }
@@ -247,14 +253,19 @@ foreach ($f in $downloadedFiles) {
 }
 
 if ($missingDeps.Count -gt 0) {
-    Write-Host "  WARNING: Missing required dependencies:" -ForegroundColor Yellow
+    Write-Host "  FATAL: Missing required dependencies:" -ForegroundColor Red
     foreach ($m in $missingDeps | Select-Object -Unique) {
-        Write-Host "    - $m" -ForegroundColor Yellow
+        Write-Host "    - $m" -ForegroundColor Red
     }
     Write-Host "  Add these to config.json mods list and rebuild." -ForegroundColor DarkGray
+    exit 1
 }
 elseif ($depWarnings.Count -gt 0) {
-    Write-Host "  Dependency check completed with warnings (see above)." -ForegroundColor DarkYellow
+    Write-Host "  FATAL: Dependency check could not verify all required dependencies:" -ForegroundColor Red
+    foreach ($w in $depWarnings | Select-Object -Unique) {
+        Write-Host "    - $w" -ForegroundColor Red
+    }
+    exit 1
 }
 else {
     Write-Host "  All required dependencies are satisfied." -ForegroundColor Green
@@ -268,8 +279,8 @@ $fileEntries = @()
 
 foreach ($file in $downloadedFiles) {
     if (-not (Test-Path $file.DestPath)) {
-        Write-Host ("  WARNING: File not found: " + $file.DestPath) -ForegroundColor Yellow
-        continue
+        Write-Host ("  FATAL: File not found: " + $file.DestPath) -ForegroundColor Red
+        exit 1
     }
 
     $sha1Hash = $file.Sha1

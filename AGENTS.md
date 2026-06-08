@@ -4,7 +4,7 @@
 
 This is a **Minecraft Modrinth modpack builder** that produces `.mrpack` files from a declarative `config.json`. It is also a **Kilo Code AI skill** that guides AI agents through modpack creation workflows.
 
-**Primary use case:** AI agents use this project to generate reproducible Minecraft modpacks with automatic dependency resolution, hash verification, and multi-loader support.
+**Primary use case:** AI agents use this project to generate reproducible Minecraft modpacks with dependency validation, hash verification, and multi-loader support.
 
 ## Repository Layout
 
@@ -51,7 +51,7 @@ modpack/overrides/        # Pack-owned files (configs, server.properties, README
 ## Testing & Validation
 
 ```powershell
-# Dry-run: parse config without downloading
+# Cached build: reuse existing downloads and fail if any cache file is missing
 .\modpack\build.ps1 -SkipDownload
 
 # Full build with optional mods

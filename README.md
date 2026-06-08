@@ -9,7 +9,7 @@ A declarative Minecraft modpack builder for the Modrinth `.mrpack` format. Defin
 ## ✨ Features
 
 - **Declarative config** — Define mods in `modpack/config.json`; no manual downloading
-- **Auto dependency resolution** — Fetches mods via Modrinth API for a given Minecraft version and loader
+- **Dependency validation** — Checks Modrinth metadata and fails the build when required dependencies are missing
 - **SHA1 hash verification** — Ensures file integrity after download
 - **Multi-loader support** — Fabric, Forge, NeoForge, and Quilt
 - **Optional mods** — Mark mods as `optional: true` to skip by default, toggle with `-IncludeOptional`
@@ -23,13 +23,13 @@ A declarative Minecraft modpack builder for the Modrinth `.mrpack` format. Defin
 | **Minecraft** | 1.20.1 |
 | **Loader** | Fabric 0.17.2 |
 | **Core mod** | Create (机械动力) |
-| **Total mods** | 20 (including optional) |
+| **Total mods** | 22 (including optional) |
 
 ### Mod List
 
 | Category | Mods |
 |----------|------|
-| Framework | Fabric API, Fabric Language Kotlin, libIPN |
+| Framework | Fabric API, Fabric Language Kotlin, Forge Config API Port, libIPN |
 | Core | Create (Fabric), Create: Steam 'n' Rails (optional) |
 | Multiplayer | e4mc |
 | Claims | Open Parties and Claims |

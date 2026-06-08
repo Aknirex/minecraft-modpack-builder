@@ -53,6 +53,13 @@
       "note": "领地模组 - 区块认领、队伍管理、领地保护"
     },
     {
+      "name": "Forge Config API Port",
+      "slug": "forge-config-api-port",
+      "platform": "modrinth",
+      "side": "both",
+      "note": "Open Parties and Claims 的 Fabric 配置 API 前置依赖"
+    },
+    {
       "name": "JourneyMap",
       "slug": "journeymap",
       "platform": "modrinth",
