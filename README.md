@@ -5,7 +5,7 @@
 ## Installation
 
 ```bash
-npx skills add Aknirex/minecraft-modpack -g -y
+npx skills add Aknirex/minecraft-modpack -y
 ```
 
 An AI skill that guides coding agents through building reproducible Minecraft Modrinth `.mrpack` modpacks, modifying existing packs, and diagnosing runtime issues from crash logs. Supports Fabric, Forge, NeoForge, and Quilt loaders with automatic dependency resolution and compatibility validation. All mod downloading is delegated to the launcher via `modrinth.index.json` — no `.jar` files are bundled, keeping the `.mrpack` lightweight (~3 KB).

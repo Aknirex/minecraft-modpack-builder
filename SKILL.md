@@ -90,6 +90,7 @@ Use this `config.json` shape:
   "game": "minecraft",
   "versionId": "1.20.1",
   "name": "Example Pack",
+  "author": "UserName",
   "summary": "Short user-facing summary.",
   "dependencies": {
     "minecraft": "1.20.1",
@@ -107,6 +108,12 @@ Use this `config.json` shape:
   ]
 }
 ```
+
+The `author` field identifies who created the modpack:
+- If the user provides their name or a preferred author name, use that value.
+- Otherwise, default to the current system username (e.g., `$env:USERNAME` on Windows).
+- If the username cannot be determined, use `"AI Generated"` as a fallback.
+- Do not leave the `author` field empty or omit it.
 
 Default filesystem names should be ASCII, lowercase, and hyphenated. User-facing pack names may use UTF-8 when requested.
 
