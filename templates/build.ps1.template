@@ -1,7 +1,7 @@
 # =============================================================================
-# Minecraft Modpack Builder (Download-Free)
-# Queries Modrinth API for mod metadata ONLY - zero .jar downloads.
-# The launcher handles all mod downloading from index.json URLs.
+# Minecraft Modpack Builder (Locked Modrinth .mrpack)
+# PowerShell 5.1 compatible. Downloads no mod jars.
+# The config must already contain locked Modrinth version IDs and file hashes.
 # Usage: .\build.ps1 [-IncludeOptional]
 # =============================================================================
 
@@ -22,158 +22,302 @@ if ($OutputDir -eq "") {
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-# ---- [1/5] Read config ----
-Write-Host "[1/5] Reading config..." -ForegroundColor Cyan
-$configContent = Get-Content $ConfigPath -Raw -Encoding UTF8
-$config = $configContent | ConvertFrom-Json
-
-$mcVersion = $config.versionId
-
-# Detect loader from dependencies keys
-$loader = "forge"
-$loaderVersion = "47.3.0"
-if ($config.dependencies -ne $null) {
-    $depProps = $config.dependencies.PSObject.Properties
-    foreach ($prop in $depProps) {
-        $name = $prop.Name
-        if ($name -eq "forge" -or $name -eq "neoforge") {
-            $loader = $name
-            $loaderVersion = $prop.Value
-            break
-        }
-        if ($name -eq "fabric-loader" -or $name -eq "fabric") {
-            $loader = "fabric"
-            $loaderVersion = $prop.Value
-            break
-        }
-        if ($name -eq "quilt-loader" -or $name -eq "quilt") {
-            $loader = "quilt"
-            $loaderVersion = $prop.Value
-            break
-        }
-    }
-}
-
-Write-Host ("  Minecraft: " + $mcVersion)
-Write-Host ("  Loader: " + $loader + " " + $loaderVersion)
-Write-Host ("  Mods in config: " + $config.mods.Count)
-
-# ---- [2/5] Query Modrinth API (metadata only, no downloads) ----
-Write-Host ""
-Write-Host "[2/5] Querying Modrinth API for mod metadata..." -ForegroundColor Cyan
-
-$fileEntries = @()
-$apiBase = "https://api.modrinth.com/v2"
-
-foreach ($mod in $config.mods) {
-    $isOptional = $false
-    if ($mod.optional -eq $true) {
-        $isOptional = $true
-    }
-    if ($isOptional -and (-not $IncludeOptional)) {
-        Write-Host ("  Skipping optional: " + $mod.name) -ForegroundColor DarkYellow
-        continue
-    }
-
-    $slug = $mod.slug
-    Write-Host ("  Processing: " + $mod.name + " (" + $slug + ")") -ForegroundColor Yellow
-
-    $failed = $false
-    $versions = $null
-
-    # Build query URL
-    $encodedLoader = [System.Web.HttpUtility]::UrlEncode('["' + $loader + '"]')
-    $encodedMc = [System.Web.HttpUtility]::UrlEncode('["' + $mcVersion + '"]')
-    $queryUrl = $apiBase + "/project/" + $slug + "/version?loaders=" + $encodedLoader + "&game_versions=" + $encodedMc
-
-    Write-Host ("    API: " + $queryUrl) -ForegroundColor DarkGray
-
-    try {
-        $versions = Invoke-RestMethod -Uri $queryUrl -ContentType "application/json" -ErrorAction Stop
-    }
-    catch {
-        Write-Host ("    API call failed: " + $_.Exception.Message) -ForegroundColor Red
-        $failed = $true
-    }
-
-    # Fallback: retry without loader filter
-    if ((-not $failed) -and ($versions.Count -eq 0)) {
-        Write-Host ("    No versions for " + $loader + " " + $mcVersion + ", retrying without loader filter...") -ForegroundColor DarkYellow
-        $queryUrl2 = $apiBase + "/project/" + $slug + "/version?game_versions=" + $encodedMc
-        try {
-            $versions = Invoke-RestMethod -Uri $queryUrl2 -ContentType "application/json" -ErrorAction Stop
-        }
-        catch {
-            Write-Host ("    Retry API call failed: " + $_.Exception.Message) -ForegroundColor Red
-            $failed = $true
-        }
-    }
-
-    if ($failed) {
-        Write-Host ("    ERROR: API failure for " + $mod.name + ", skipping") -ForegroundColor Red
-        continue
-    }
-
-    if ($versions.Count -eq 0) {
-        Write-Host ("    ERROR: No versions found for " + $mcVersion + ", skipping") -ForegroundColor Red
-        continue
-    }
-
-    $latest = $versions[0]
-    $verNum = $latest.version_number
-    $fname = $latest.files[0].filename
-    $durl = $latest.files[0].url
-    $fsize = $latest.files[0].size
-    $sha1 = $latest.files[0].hashes.sha1
-    $sha512 = $latest.files[0].hashes.sha512
-
-    $sizeMB = [math]::Round($fsize / 1048576, 2)
-    Write-Host ("    Version: " + $verNum + " | File: " + $fname + " | Size: " + $sizeMB + " MB")
-
-    # Build env object from side declaration
-    $clientEnv = "required"
-    $serverEnv = "required"
-    if ($mod.side -eq "client") {
-        $serverEnv = "unsupported"
-    }
-    elseif ($mod.side -eq "server") {
-        $clientEnv = "unsupported"
-    }
-
-    # Use API metadata directly - no local file download or hash verification
-    $entry = @{
-        path      = ("mods/" + $fname)
-        hashes    = @{ sha1 = $sha1; sha512 = $sha512 }
-        env       = @{ client = $clientEnv; server = $serverEnv }
-        downloads = @($durl)
-        fileSize  = [int64]$fsize
-    }
-
-    $fileEntries += $entry
-
-    Write-Host ("    SHA1: " + $sha1) -ForegroundColor DarkGray
-}
-
-Write-Host ""
-Write-Host ("  Resolved: " + $fileEntries.Count + " mods") -ForegroundColor Green
-
-if ($fileEntries.Count -eq 0) {
-    Write-Host "FATAL: No mods resolved, exiting" -ForegroundColor Red
+function Fail($Message) {
+    Write-Host ("FATAL: " + $Message) -ForegroundColor Red
     exit 1
 }
 
-# ---- [3/5] Generate modrinth.index.json ----
-Write-Host ""
-Write-Host "[3/5] Generating modrinth.index.json..." -ForegroundColor Cyan
+function Warn($Message) {
+    Write-Host ("WARNING: " + $Message) -ForegroundColor DarkYellow
+    $script:Warnings += $Message
+}
 
-$depObj = @{}
-if ($config.dependencies -ne $null) {
-    $depProps = $config.dependencies.PSObject.Properties
-    foreach ($prop in $depProps) {
-        $depObj[$prop.Name] = $prop.Value
+function Test-SafeRelativePath([string]$PathValue) {
+    if ([string]::IsNullOrWhiteSpace($PathValue)) { return $false }
+    if ($PathValue -match '^[A-Za-z]:[\\/]') { return $false }
+    if ($PathValue.StartsWith("/") -or $PathValue.StartsWith("\")) { return $false }
+    if ($PathValue -match '(^|[\\/])\.\.([\\/]|$)') { return $false }
+    return $true
+}
+
+function Convert-ToEnv($Side, $Optional) {
+    $clientEnv = "required"
+    $serverEnv = "required"
+    if ($Optional -eq $true) {
+        $clientEnv = "optional"
+        $serverEnv = "optional"
+    }
+
+    if ($Side -eq "client") {
+        $serverEnv = "unsupported"
+    }
+    elseif ($Side -eq "server") {
+        $clientEnv = "unsupported"
+    }
+    elseif ($Side -ne "both") {
+        Fail ("Invalid side '" + $Side + "'. Use client, server, or both.")
+    }
+
+    return @{ client = $clientEnv; server = $serverEnv }
+}
+
+function Get-PropValue($Object, [string]$Name) {
+    if ($Object -eq $null) { return $null }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($prop -eq $null) { return $null }
+    return $prop.Value
+}
+
+function Copy-SafeDirectory([string]$SourceDir, [string]$DestDir, [string]$Label) {
+    if (-not (Test-Path $SourceDir)) { return $false }
+
+    $sourceRoot = (Resolve-Path $SourceDir).Path
+    $files = Get-ChildItem -Path $SourceDir -Recurse -File
+    foreach ($file in $files) {
+        $relative = $file.FullName.Substring($sourceRoot.Length).TrimStart('\', '/')
+        if (-not (Test-SafeRelativePath $relative)) {
+            Fail ("Unsafe " + $Label + " path: " + $relative)
+        }
+        if ($relative -match '^mods[\\/]') {
+            Fail ("Do not place downloadable mod jars in " + $Label + ": " + $relative)
+        }
+    }
+
+    New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
+    $children = @(Get-ChildItem -Path $SourceDir -Force)
+    if ($children.Count -gt 0) {
+        Copy-Item -Path (Join-Path $SourceDir "*") -Destination $DestDir -Recurse -Force
+    }
+    return $true
+}
+
+function New-HashtableFromObject($Object) {
+    $result = @{}
+    if ($Object -eq $null) { return $result }
+    foreach ($prop in $Object.PSObject.Properties) {
+        $result[$prop.Name] = $prop.Value
+    }
+    return $result
+}
+
+$script:Warnings = @()
+$resolvedMods = @()
+$skippedOptional = @()
+$dependencyChecks = @()
+$apiBase = "https://api.modrinth.com/v2"
+
+Write-Host "[1/7] Reading locked config..." -ForegroundColor Cyan
+if (-not (Test-Path $ConfigPath)) {
+    Fail ("Config file not found: " + $ConfigPath)
+}
+
+$configContent = Get-Content $ConfigPath -Raw -Encoding UTF8
+$config = $configContent | ConvertFrom-Json
+
+if ($config.formatVersion -ne 1) { Fail "formatVersion must be 1." }
+if ($config.game -ne "minecraft") { Fail "game must be minecraft." }
+if ([string]::IsNullOrWhiteSpace($config.versionId)) { Fail "Top-level versionId must be the pack version ID." }
+if ([string]::IsNullOrWhiteSpace($config.name)) { Fail "Pack name is required." }
+if ([string]::IsNullOrWhiteSpace($config.summary)) { Fail "Pack summary is required." }
+if ([string]::IsNullOrWhiteSpace($config.author)) { Fail "Pack author is required." }
+if ($config.dependencies -eq $null) { Fail "dependencies object is required." }
+
+$mcVersion = Get-PropValue $config.dependencies "minecraft"
+if ([string]::IsNullOrWhiteSpace($mcVersion)) {
+    Fail "dependencies.minecraft is required."
+}
+
+$loaderKeys = @("fabric-loader", "quilt-loader", "forge", "neoforge")
+$foundLoaders = @()
+foreach ($key in $loaderKeys) {
+    $value = Get-PropValue $config.dependencies $key
+    if (-not [string]::IsNullOrWhiteSpace($value)) {
+        $foundLoaders += $key
+    }
+}
+if ($foundLoaders.Count -ne 1) {
+    Fail ("Exactly one loader dependency is required. Found: " + ($foundLoaders -join ", "))
+}
+
+$loaderKey = $foundLoaders[0]
+$loaderVersion = Get-PropValue $config.dependencies $loaderKey
+$modrinthLoader = $loaderKey
+if ($loaderKey -eq "fabric-loader") { $modrinthLoader = "fabric" }
+elseif ($loaderKey -eq "quilt-loader") { $modrinthLoader = "quilt" }
+
+if ($config.mods -eq $null -or $config.mods.Count -eq 0) {
+    Fail "mods array must contain at least one locked mod."
+}
+
+Write-Host ("  Pack: " + $config.name + " " + $config.versionId)
+Write-Host ("  Minecraft: " + $mcVersion)
+Write-Host ("  Loader: " + $loaderKey + " " + $loaderVersion)
+Write-Host ("  Mods in config: " + $config.mods.Count)
+
+Write-Host ""
+Write-Host "[2/7] Validating locked Modrinth versions..." -ForegroundColor Cyan
+
+$fileEntries = @()
+$selectedProjectIds = @{}
+
+foreach ($mod in $config.mods) {
+    $isOptional = $false
+    if ($mod.optional -eq $true) { $isOptional = $true }
+
+    if ($isOptional -and (-not $IncludeOptional)) {
+        Write-Host ("  Skipping optional: " + $mod.name) -ForegroundColor DarkYellow
+        $skippedOptional += $mod.name
+        continue
+    }
+
+    if ($mod.platform -ne $null -and $mod.platform -ne "modrinth") {
+        Fail ("Unsupported platform for " + $mod.name + ": " + $mod.platform)
+    }
+    if ($mod.source -ne $null -and $mod.source -ne "modrinth") {
+        Fail ("Unsupported source for " + $mod.name + ": " + $mod.source)
+    }
+    if ([string]::IsNullOrWhiteSpace($mod.name)) { Fail "Each mod must have a name." }
+    if ([string]::IsNullOrWhiteSpace($mod.versionId)) {
+        Fail ($mod.name + " is not locked. Add its Modrinth versionId before building.")
+    }
+
+    Write-Host ("  Processing: " + $mod.name + " [" + $mod.versionId + "]") -ForegroundColor Yellow
+
+    $versionUrl = $apiBase + "/version/" + [System.Uri]::EscapeDataString($mod.versionId)
+    try {
+        $version = Invoke-RestMethod -Uri $versionUrl -ContentType "application/json" -ErrorAction Stop
+    }
+    catch {
+        Fail ("Failed to fetch Modrinth version for " + $mod.name + ": " + $_.Exception.Message)
+    }
+
+    if ($version.game_versions -notcontains $mcVersion) {
+        Fail ($mod.name + " version " + $version.version_number + " does not support Minecraft " + $mcVersion)
+    }
+    if ($version.loaders -notcontains $modrinthLoader) {
+        Fail ($mod.name + " version " + $version.version_number + " does not support loader " + $modrinthLoader)
+    }
+
+    if ($selectedProjectIds.ContainsKey($version.project_id)) {
+        Fail ("Duplicate project selected: " + $mod.name + " and " + $selectedProjectIds[$version.project_id])
+    }
+    $selectedProjectIds[$version.project_id] = $mod.name
+
+    foreach ($dep in $version.dependencies) {
+        $dependencyChecks += @{
+            sourceName     = $mod.name
+            sourceProject  = $version.project_id
+            dependencyType = $dep.dependency_type
+            projectId      = $dep.project_id
+            versionId      = $dep.version_id
+            fileName       = $dep.file_name
+        }
+    }
+
+    if ($version.files -eq $null -or $version.files.Count -eq 0) {
+        Fail ($mod.name + " has no downloadable files in selected version.")
+    }
+
+    $selectedFile = $null
+    if (-not [string]::IsNullOrWhiteSpace($mod.lockedFileSha1)) {
+        foreach ($file in $version.files) {
+            if ($file.hashes.sha1 -eq $mod.lockedFileSha1) {
+                $selectedFile = $file
+                break
+            }
+        }
+        if ($selectedFile -eq $null) {
+            Fail ($mod.name + " lockedFileSha1 does not match any file in version " + $mod.versionId)
+        }
+    }
+    else {
+        foreach ($file in $version.files) {
+            if ($file.primary -eq $true) {
+                $selectedFile = $file
+                break
+            }
+        }
+        if ($selectedFile -eq $null) {
+            $selectedFile = $version.files[0]
+            Warn ($mod.name + " has no primary file; using first file from Modrinth metadata.")
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($selectedFile.filename)) { Fail ($mod.name + " selected file has no filename.") }
+    if ([string]::IsNullOrWhiteSpace($selectedFile.url)) { Fail ($mod.name + " selected file has no download URL.") }
+    if ($selectedFile.url -notmatch '^https://') { Fail ($mod.name + " download URL must be HTTPS.") }
+    if ([string]::IsNullOrWhiteSpace($selectedFile.hashes.sha1)) { Fail ($mod.name + " selected file has no SHA1 hash.") }
+    if ([string]::IsNullOrWhiteSpace($selectedFile.hashes.sha512)) { Warn ($mod.name + " selected file has no SHA512 hash.") }
+    if ($selectedFile.size -eq $null -or [int64]$selectedFile.size -le 0) { Fail ($mod.name + " selected file has invalid size.") }
+
+    $filePath = "mods/" + $selectedFile.filename
+    if (-not (Test-SafeRelativePath $filePath)) {
+        Fail ($mod.name + " selected file has unsafe path: " + $filePath)
+    }
+
+    $envObj = Convert-ToEnv $mod.side $isOptional
+    $hashObj = @{ sha1 = $selectedFile.hashes.sha1 }
+    if (-not [string]::IsNullOrWhiteSpace($selectedFile.hashes.sha512)) {
+        $hashObj["sha512"] = $selectedFile.hashes.sha512
+    }
+
+    $fileEntries += @{
+        path      = $filePath
+        hashes    = $hashObj
+        env       = $envObj
+        downloads = @($selectedFile.url)
+        fileSize  = [int64]$selectedFile.size
+    }
+
+    $resolvedMods += @{
+        name             = $mod.name
+        slug             = $mod.slug
+        projectId        = $version.project_id
+        versionId        = $version.id
+        versionNumber    = $version.version_number
+        file             = $selectedFile.filename
+        side             = $mod.side
+        optional         = $isOptional
+        category         = $mod.category
+        reason           = $mod.reason
+        requiredDeps     = @($version.dependencies | Where-Object { $_.dependency_type -eq "required" } | ForEach-Object { $_.project_id })
+        optionalDeps     = @($version.dependencies | Where-Object { $_.dependency_type -eq "optional" } | ForEach-Object { $_.project_id })
+        embeddedDeps     = @($version.dependencies | Where-Object { $_.dependency_type -eq "embedded" } | ForEach-Object { $_.project_id })
+        incompatibleDeps = @($version.dependencies | Where-Object { $_.dependency_type -eq "incompatible" } | ForEach-Object { $_.project_id })
+    }
+
+    Write-Host ("    OK: " + $version.version_number + " | " + $selectedFile.filename)
+}
+
+if ($fileEntries.Count -eq 0) {
+    Fail "No mod files were selected."
+}
+
+Write-Host ""
+Write-Host "[3/7] Checking dependency closure..." -ForegroundColor Cyan
+
+foreach ($dep in $dependencyChecks) {
+    if ($dep.dependencyType -eq "required") {
+        if ([string]::IsNullOrWhiteSpace($dep.projectId)) {
+            Fail ($dep.sourceName + " has a required external dependency that is not represented by a Modrinth project: " + $dep.fileName)
+        }
+        if (-not $selectedProjectIds.ContainsKey($dep.projectId)) {
+            Fail ($dep.sourceName + " requires missing Modrinth project " + $dep.projectId + ". Resolve transitive dependencies before building.")
+        }
+    }
+    elseif ($dep.dependencyType -eq "incompatible") {
+        if (-not [string]::IsNullOrWhiteSpace($dep.projectId) -and $selectedProjectIds.ContainsKey($dep.projectId)) {
+            Fail ($dep.sourceName + " is incompatible with selected project " + $selectedProjectIds[$dep.projectId])
+        }
     }
 }
 
+Write-Host "  Required dependency closure is present." -ForegroundColor Green
+
+Write-Host ""
+Write-Host "[4/7] Generating modrinth.index.json..." -ForegroundColor Cyan
+
+$depObj = New-HashtableFromObject $config.dependencies
 $indexObj = @{
     formatVersion = [int]$config.formatVersion
     game          = $config.game
@@ -184,87 +328,94 @@ $indexObj = @{
     dependencies  = $depObj
 }
 
+if (Test-Path $OutputDir) {
+    New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
+}
+else {
+    New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
+}
+
 $buildDir = Join-Path $OutputDir "build-tmp"
+if (Test-Path $buildDir) {
+    Remove-Item -Path $buildDir -Recurse -Force
+}
 New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
 
 $indexPath = Join-Path $buildDir "modrinth.index.json"
-$indexObj | ConvertTo-Json -Depth 10 | Out-File -FilePath $indexPath -Encoding UTF8
-
+$indexObj | ConvertTo-Json -Depth 20 | Out-File -FilePath $indexPath -Encoding UTF8
 Write-Host ("  Generated: " + $indexPath) -ForegroundColor Green
 
-# ---- [4/5] Copy overrides ----
 Write-Host ""
-Write-Host "[4/5] Copying override files..." -ForegroundColor Cyan
+Write-Host "[5/7] Copying safe overrides..." -ForegroundColor Cyan
 
-$overridesDir = Join-Path $buildDir "overrides"
-New-Item -ItemType Directory -Force -Path $overridesDir | Out-Null
+$includedArchivePaths = @("modrinth.index.json")
 
-# Override config directory
-$sourceOverrideConfig = Join-Path $PSScriptRoot "overrides\config"
-if (Test-Path $sourceOverrideConfig) {
-    $destConfigDir = Join-Path $overridesDir "config"
-    New-Item -ItemType Directory -Force -Path $destConfigDir | Out-Null
-    Copy-Item -Path (Join-Path $sourceOverrideConfig "*") -Destination $destConfigDir -Recurse -Force
-    Write-Host "  Copied override configs" -ForegroundColor Gray
-}
-else {
-    $configReadme = Join-Path $overridesDir "config\README.txt"
-    New-Item -ItemType Directory -Force -Path (Split-Path $configReadme -Parent) | Out-Null
-    "# Config directory for this modpack" | Out-File -FilePath $configReadme -Encoding UTF8
+$sourceOverrides = Join-Path $PSScriptRoot "overrides"
+$destOverrides = Join-Path $buildDir "overrides"
+if (Copy-SafeDirectory $sourceOverrides $destOverrides "overrides") {
+    $includedArchivePaths += "overrides"
+    Write-Host "  Copied overrides/" -ForegroundColor Gray
 }
 
-# Server properties
-$sourceServerProps = Join-Path $PSScriptRoot "overrides\server.properties"
-if (Test-Path $sourceServerProps) {
-    Copy-Item -Path $sourceServerProps -Destination $overridesDir -Force
-    Write-Host "  Copied server.properties" -ForegroundColor Gray
+$sourceServerOverrides = Join-Path $PSScriptRoot "server-overrides"
+$destServerOverrides = Join-Path $buildDir "server-overrides"
+if (Copy-SafeDirectory $sourceServerOverrides $destServerOverrides "server-overrides") {
+    $includedArchivePaths += "server-overrides"
+    Write-Host "  Copied server-overrides/" -ForegroundColor Gray
 }
 
-# Options.txt (game defaults)
-$sourceOptions = Join-Path $PSScriptRoot "overrides\options.txt"
-if (Test-Path $sourceOptions) {
-    Copy-Item -Path $sourceOptions -Destination $overridesDir -Force
-    Write-Host "  Copied options.txt" -ForegroundColor Gray
-}
-
-# ---- [5/5] Package .mrpack ----
 Write-Host ""
-Write-Host "[5/5] Packaging .mrpack..." -ForegroundColor Cyan
+Write-Host "[6/7] Writing build report..." -ForegroundColor Cyan
+
+$loaderMetadataSource = $null
+if ($config.metadata -ne $null) {
+    $loaderMetadataSource = $config.metadata.loaderMetadataSource
+}
+
+$reportObj = @{
+    packName              = $config.name
+    packVersionId         = $config.versionId
+    author                = $config.author
+    minecraft             = $mcVersion
+    loaderKey             = $loaderKey
+    loaderVersion         = $loaderVersion
+    loaderMetadataSource  = $loaderMetadataSource
+    includeOptional       = [bool]$IncludeOptional
+    resolvedMods          = $resolvedMods
+    dependencyChecks      = $dependencyChecks
+    skippedOptional       = $skippedOptional
+    warnings              = $script:Warnings
+    generatedIndex        = $indexPath
+}
+
+$reportPath = Join-Path $OutputDir "build-report.json"
+$reportObj | ConvertTo-Json -Depth 20 | Out-File -FilePath $reportPath -Encoding UTF8
+Write-Host ("  Report: " + $reportPath) -ForegroundColor Green
+
+Write-Host ""
+Write-Host "[7/7] Packaging .mrpack..." -ForegroundColor Cyan
 
 $packFile = Join-Path $OutputDir ($PackName + ".mrpack")
-$packParent = Split-Path $packFile -Parent
-New-Item -ItemType Directory -Force -Path $packParent | Out-Null
-
-if (Test-Path $packFile) {
-    Remove-Item $packFile -Force
-}
-
-# Compress to .zip then rename (PS 5.1 workaround)
-Push-Location $buildDir
 $tempZip = Join-Path $OutputDir ($PackName + ".zip")
+
+if (Test-Path $packFile) { Remove-Item $packFile -Force }
+if (Test-Path $tempZip) { Remove-Item $tempZip -Force }
+
+Push-Location $buildDir
 try {
-    $compressParams = @{
-        Path             = "modrinth.index.json", "overrides"
-        DestinationPath  = $tempZip
-        CompressionLevel = "Optimal"
-        Force            = $true
-    }
-    Compress-Archive @compressParams
-    if (Test-Path $packFile) {
-        Remove-Item $packFile -Force
-    }
+    Compress-Archive -Path $includedArchivePaths -DestinationPath $tempZip -CompressionLevel Optimal -Force
     Move-Item -Path $tempZip -Destination $packFile -Force
-    Write-Host ("  Packaged: " + $packFile) -ForegroundColor Green
 }
 catch {
-    Write-Host ("  Packaging failed: " + $_.Exception.Message) -ForegroundColor Red
-    if (Test-Path $tempZip) {
-        Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
-    }
+    Pop-Location
+    Fail ("Packaging failed: " + $_.Exception.Message)
 }
 Pop-Location
 
-# ---- Report ----
+if (-not (Test-Path $packFile)) {
+    Fail "Packaging did not produce an .mrpack file."
+}
+
 $packSize = (Get-Item $packFile).Length
 $packSizeKB = [math]::Round($packSize / 1024, 1)
 
@@ -274,18 +425,8 @@ Write-Host "  Build complete!" -ForegroundColor Green
 Write-Host ("  Output: " + $packFile) -ForegroundColor White
 Write-Host ("  Size: " + $packSizeKB + " KB") -ForegroundColor White
 Write-Host ("  Mods: " + $fileEntries.Count) -ForegroundColor White
+Write-Host ("  Report: " + $reportPath) -ForegroundColor White
 Write-Host "========================================" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "  Resolved mods:" -ForegroundColor Cyan
-$idx = 1
-foreach ($mod in $config.mods) {
-    $isOptional = $false
-    if ($mod.optional -eq $true) { $isOptional = $true }
-    if ($isOptional -and (-not $IncludeOptional)) { continue }
-    Write-Host ("  " + $idx + ". " + $mod.name)
-    $idx = $idx + 1
-}
-
-Write-Host ""
-Write-Host ("  Temp build dir: " + $buildDir) -ForegroundColor DarkGray
+Write-Host "Import the .mrpack in Modrinth App, Prism Launcher, MultiMC, or ATLauncher." -ForegroundColor Cyan

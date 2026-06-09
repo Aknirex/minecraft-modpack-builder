@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "game": "minecraft",
-  "versionId": "1.20.1",
+  "versionId": "1.0.0",
   "name": "Example Modpack",
   "author": "UserName",
   "summary": "A short description of the modpack.",
@@ -9,22 +9,27 @@
     "minecraft": "1.20.1",
     "fabric-loader": "0.17.2"
   },
+  "metadata": {
+    "loaderMetadataSource": "https://meta.fabricmc.net/v2/versions/loader/1.20.1",
+    "resolvedAt": "2026-06-09",
+    "notes": [
+      "Example config uses locked Modrinth version metadata. Replace example IDs before building."
+    ]
+  },
   "mods": [
-    {
-      "name": "Fabric API",
-      "slug": "fabric-api",
-      "platform": "modrinth",
-      "side": "both",
-      "optional": false,
-      "note": "Required framework dependency"
-    },
     {
       "name": "Sodium",
       "slug": "sodium",
+      "modrinthProjectId": "AANobbMI",
+      "versionId": "exampleVersionId",
+      "lockedFileSha1": "exampleSha1",
       "platform": "modrinth",
+      "source": "modrinth",
       "side": "client",
       "optional": false,
-      "note": "Rendering optimization"
+      "category": "performance/rendering",
+      "reason": "Rendering optimization",
+      "note": "Resolve to a real Modrinth version ID and SHA1 before building"
     }
   ]
 }

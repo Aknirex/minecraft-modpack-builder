@@ -2,35 +2,80 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+An AI skill for designing, validating, and packaging reproducible Minecraft Modrinth `.mrpack` modpacks. It is meant for agents that need to choose a stable Minecraft version and loader, resolve Modrinth projects, include required dependency closures, avoid incompatible or duplicate mods, and produce a lightweight pack that launchers can import.
+
 ## Installation
 
 ```bash
 npx skills add Aknirex/minecraft-modpack -y
 ```
 
-An AI skill that guides coding agents through building reproducible Minecraft Modrinth `.mrpack` modpacks, modifying existing packs, and diagnosing runtime issues from crash logs. Supports Fabric, Forge, NeoForge, and Quilt loaders with automatic dependency resolution and compatibility validation. All mod downloading is delegated to the launcher via `modrinth.index.json` — no `.jar` files are bundled, keeping the `.mrpack` lightweight (~3 KB).
+## What It Does
 
-## What This Skill Does
+- Builds Modrinth `.mrpack` packs for Fabric, Forge, NeoForge, and Quilt
+- Resolves mods from live Modrinth metadata instead of remembered compatibility rules
+- Recursively includes required dependencies and records optional, embedded, and incompatible dependencies
+- Validates Minecraft version, loader, side support, hashes, downloads, and safe paths before packaging
+- Produces a locked `config.json` plus a PowerShell 5.1 compatible `build.ps1`
+- Packages only `modrinth.index.json`, `overrides/`, and `server-overrides/`; mod jars are downloaded by the launcher
+- Supports pack modification workflows for adding/removing mods, shaders, resource packs, and config overrides
+- Diagnoses runtime issues from crash reports, latest logs, and launcher error dialogs
 
-- Resolves Minecraft version and loader from user requirements
-- Queries Modrinth API to find compatible mod versions
-- Recursively resolves required/transitive dependencies
-- Validates loader conflicts, duplicate features, and side restrictions
-- Generates `config.json` + download-free `build.ps1` for reproducible local builds (AI generates the script based on `templates/build.ps1.template`)
-- Packages a lightweight `.mrpack` (manifest + overrides only) — the launcher handles all mod downloads
-- Modifies existing modpacks — add/remove mods, shaderpacks, or resource packs
-- Diagnoses runtime errors from crash reports, logs, and launcher error messages
+## Boundaries
 
-## Structure
+This skill targets Modrinth `.mrpack` output. It does not generate CurseForge manifests by default, does not bundle downloaded mod jars, and does not maintain static mod-specific compatibility tables. Loader and framework choices should come from live metadata and pack logs.
+
+## Good Input To Give The Agent
+
+```text
+Create a stable client+server exploration pack.
+Minecraft version: choose the newest stable version supported by the required mods.
+Loader: choose the best compatible loader.
+Required: Terralith, Simple Voice Chat, Jade, Sodium-like performance if compatible.
+Optional: shader support and a minimap.
+Avoid: alpha versions and duplicate recipe viewers.
+Author: ExampleUser.
+```
+
+For troubleshooting, provide:
+
+- `crash-reports/*.txt` or `logs/latest.log`
+- The launcher's error dialog text
+- Screenshots for visual issues
+- The current `modpack/config.json`
+
+## Generated Pack Structure
+
+```text
+modpack/
+|-- config.json
+|-- build.ps1
+|-- overrides/
+|   |-- config/
+|   |-- resourcepacks/
+|   `-- shaderpacks/
+|-- server-overrides/
+|   `-- config/
+`-- build/
+    |-- build-tmp/
+    |   `-- modrinth.index.json
+    |-- build-report.json
+    `-- modpack.mrpack
+```
+
+The `.mrpack` contains `modrinth.index.json` at the archive root. Launchers such as Modrinth App, Prism Launcher, MultiMC, and ATLauncher use that manifest to download the referenced mod files.
+
+## Repository Structure
 
 ```text
 .
-├── SKILL.md                # AI skill definition (entry point for npx skills add)
-├── README.md               # This file
-├── LICENSE                 # MIT
-├── .gitignore
-├── skill/agents/           # Agent configuration
-└── templates/              # build.ps1.template and config.json templates
+|-- SKILL.md
+|-- README.md
+|-- LICENSE
+|-- skill/agents/
+`-- templates/
+    |-- build.ps1.template
+    `-- config.json
 ```
 
 ## License
